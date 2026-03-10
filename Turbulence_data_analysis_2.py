@@ -1,22 +1,45 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
 import numpy as np
 import math
 import matplotlib as mpl
 mpl.use("TkAgg")
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
+from scipy import stats
 
+# Function to calculate 1D Energy Spectrum
+def fit(k, E_k):
+    inertial_range = (k > (2 * np.pi * 6 / L)) & (k < 2 * np.pi / (60 * eta))
+    log_E_k = np.log(E_k[inertial_range])
+    log_k = np.log(k[inertial_range])
+    alpha, log_A = np.polyfit(log_k, log_E_k, 1)
+    A = np.exp(log_A)
+    E_k_fit = A * k**(alpha)
+    A_ref = E_k[inertial_range][0] / k[inertial_range][0]**(-5/3)
+    E_k_ref = A_ref * k**(-5/3)
+    return E_k_fit, E_k_ref, alpha, inertial_range
+
+def correlation(u, r_val):
+    R = np.array([np.mean(u*np.roll(u, -r, axis=0)) for r in r_val])
+    return R / R[0]
+
+# Sturcture functions
+def structure(u, r_values, p):
+    S_p = np.array([np.mean(np.abs((np.roll(u, -r, axis=0)-u))**p) for r in r_values])
+    return S_p
+
+def taufit(r_values, S_p):
+    log_S_p = np.log(S_p)
+    log_r_values = np.log(np.array(r_values))
+    slope, intercept, r_value, p_value, slope_err = stats.linregress(log_r_values, log_S_p)
+    return slope, slope_err
+
+# Load data
 data = np.load("isotropic1024_slice.npz" )
 u = data["u"]
 v = data["v"]
 w = data["w"]
 
-# Data
+# Data Definition
 L = 2 * np.pi
 Nx, Ny = 1024, 1024
 dx = L / Nx
@@ -32,20 +55,12 @@ u_rms = np.sqrt(np.mean(u**2 + v**2))
 epsilon = u_rms**3 / (1.364)
 eta = (nu**3 / epsilon)**(1/4)
 
-r_values = []
-r_length = []
-r_val = []
-for i in range(50):
-    r_value = int(0 + (512 - 0) * (math.exp(i / 49) - 1) / (math.exp(1) - 1))
-    r_values.append(r_value)
-    r_value_with_pi = r_value * math.pi / 512
-    r_length.append(r_value_with_pi)
-    r_val_temp = int(i * (1024 / 49))
-    r_val.append(r_val_temp)
+r_values = np.unique(np.logspace(0,np.log10(512),50).astype(int))
+r_length = r_values * np.pi / 512
+r_val = np.linspace(0, 1024, 50)
 
-
-# In[3]:
-
+R_l = correlation(u, r_val)
+R_t = correlation(v, r_val)
 
 # Verify Parseval's Theorem
 u0 = u[:,0]
@@ -54,56 +69,15 @@ total_energy_spatial_y0 = np.sum(np.abs(u0)**2)
 total_energy_spectral_y0 = np.sum(np.abs(u0_fft)**2) / Nx
 print(f"Total energy in spatial domain: {total_energy_spatial_y0}\nTotal energy in spectral domain: {total_energy_spectral_y0}")
 
-
-# In[5]:
-
-
-# Function to calculate 1D Energy Spectrum
-def fit(k, E_k):
-    inertial_range = (k > (2 * np.pi * 6 / L)) & (k < 2 * np.pi / (60 * eta))
-    log_E_k = np.log(E_k[inertial_range])
-    log_k = np.log(k[inertial_range])
-    alpha, log_A = np.polyfit(log_k, log_E_k, 1)
-    A = np.exp(log_A)
-    E_k_fit = A * k**(alpha)
-    A_ref = E_k[inertial_range][0] / k[inertial_range][0]**(-5/3)
-    E_k_ref = A_ref * k**(-5/3)
-    return E_k_fit, E_k_ref, alpha, inertial_range
-
-
-# In[7]:
-
-
 # Calculation of 1D Energy spectrum
-for y in range(Ny):
-    u_fft_y = np.fft.fft(u[:,y])
-    v_fft_y = np.fft.fft(v[:,y])
-    E_k_y[:,y] = 0.5 * (np.abs(u_fft_y)**2 + np.abs(v_fft_y)**2)
+u_fft_all = np.fft.fft(u, axis=0)
+v_fft_all = np.fft.fft(v, axis=0)
+E_k_y = 0.5 * (np.abs(u_fft_all)**2 + np.abs(v_fft_all)**2)
 
 E_k = np.mean(E_k_y, axis=1)
-E_k = np.fft.fftshift(E_k)
-E_k = E_k[Nx//2:]
+E_k = np.fft.fftshift(E_k)[Nx//2:]
 
 E_k_fit, E_k_ref, alpha, inertial_range = fit(k, E_k)
-
-
-# In[65]:
-
-
-# plot for 1D Energy Spectrum
-plt.loglog(k, E_k)
-plt.loglog(k[inertial_range], E_k_fit[inertial_range], 'r--', label=f"Fit: $k^{alpha}$")
-plt.loglog(k[inertial_range], E_k_ref[inertial_range], 'k-.', label=r"$k^{-5/3}$ reference")
-plt.xlabel(r"Wavenumber $k$")
-plt.ylabel(r"Energy Spectrum $E(k)$")
-plt.legend()
-plt.grid()
-plt.title("1D Energy Spectrum")
-plt.show()
-
-
-# In[11]:
-
 
 # Calculate 2D Energy Spectrum
 u_fft = np.fft.fft2(u)
@@ -135,75 +109,6 @@ E_k_shell[N > 0] /= N[N > 0]
 
 E_k_fit_shell, E_k_ref_shell, alpha_shell, inertial_range_shell = fit(k_bin, E_k_shell)
 
-
-# In[69]:
-
-
-# Plot 2D Energy Spectrum
-plt.loglog(k_bin, E_k_shell)
-plt.loglog(k_bin[inertial_range_shell], E_k_fit_shell[inertial_range_shell], 'r--', label=f"Fit: $k^{alpha_shell}$")
-plt.loglog(k_bin[inertial_range_shell], E_k_ref_shell[inertial_range_shell], 'k-.', label=r"$k^{-5/3}$ reference")
-plt.xlabel(r"Wavenumber $k$")
-plt.ylabel(r"Energy Spectrum $E(k)$")
-plt.legend()
-plt.grid()
-plt.title("2D Energy Spectrum")
-plt.show()
-
-
-# In[19]:
-
-
-def correlation(u, r_val):
-    term = 0
-    R = np.zeros(len(r_val))
-    for r in r_val:
-        count = 0
-        for x in range(Nx):
-            for y in range(Ny):
-                # Apply periodic boundary condition for x
-                x_periodic = (x + r) % Nx
-                R[term] += u[x, y] * u[x_periodic, y]
-                count += 1
-        print(r, term, R[term])
-        R[term] = R[term] / count if count > 0 else 0
-        term += 1   
-    return R / R[0]
-R_l = correlation(u, r_val)
-R_t = correlation(v, r_val)
-
-
-# In[87]:
-
-
-# Velocity correlation function
-plt.plot(r_val, R_l, label="Longitudinal correlation")
-plt.plot(r_val, R_t, label="Transverse correlation")
-plt.xlabel("r(in terms of grids)")
-plt.ylabel("Correlation coefficient")
-plt.legend()
-plt.grid()
-plt.title("Velocity correlation function")
-plt.show()
-
-
-# In[24]:
-
-
-# Sturcture functions
-def structure(u, r_values, p):
-    S_p = np.zeros(len(r_values))
-    for r in range(len(r_values)):
-        count = 0
-        for x in range(0, Nx):
-            for y in range(0, Ny):
-                x_periodic = (x + r) % Nx
-                S_p[r] += np.abs(u[x_periodic, y] - u[x, y])**p
-                count += 1
-        S_p[r] = S_p[r] / count if count > 0 else 0
-        print(r)
-    print("----------------Done----------------")
-    return S_p
 S_1 = structure(u, r_values, 1)
 S_2 = structure(u, r_values, 2)
 S_3 = structure(u, r_values, 3)
@@ -212,13 +117,67 @@ S_5 = structure(u, r_values, 5)
 S_6 = structure(u, r_values, 6)
 S_7 = structure(u, r_values, 7)
 
+p_values = np.arange(1, 8)
+tau = []
+tau_errors = []
 
-# In[89]:
+structure_functions = [S_1, S_2, S_3, S_4, S_5, S_6, S_7]
+for i, S_p in enumerate(structure_functions):
+    tau_p, tau_p_err = taufit(r_values, S_p)
+    tau.append(tau_p)
+    tau_errors.append(tau_p_err)
 
+tau_p_theoretical = [p/3 for p in p_values]
+
+# Structure Function Scaling Exponents
+p_values = np.array(p_values)
+tau = np.array(tau)
+tau_errors = np.array(tau_errors)
+
+# Kolmogorove's 4/5th law
+S_3_kolmogorov = np.zeros(len(r_length))
+for i, r in enumerate(r_length):
+    S_3_kolmogorov[i] = (4 * epsilon * r) / 5
+
+# plot for 1D Energy Spectrum
+plt.figure(figsize=(8, 6))
+plt.loglog(k, E_k)
+plt.loglog(k[inertial_range], E_k_fit[inertial_range], 'r--', label=f"Fit: $k^{alpha}$")
+plt.loglog(k[inertial_range], E_k_ref[inertial_range], 'k-.', label=r"$k^{-5/3}$ reference")
+plt.xlabel(r"Wavenumber $k$")
+plt.ylabel(r"Energy Spectrum $E(k)$")
+plt.legend()
+plt.grid()
+plt.title("1D Energy Spectrum")
+plt.savefig("1D_Energy_Spectrum.png", dpi=300)
+
+# Plot 2D Energy Spectrum
+plt.figure(figsize=(8, 6))
+plt.loglog(k_bin, E_k_shell)
+plt.loglog(k_bin[inertial_range_shell], E_k_fit_shell[inertial_range_shell], 'r--', label=f"Fit: $k^{alpha_shell}$")
+plt.loglog(k_bin[inertial_range_shell], E_k_ref_shell[inertial_range_shell], 'k-.', label=r"$k^{-5/3}$ reference")
+plt.xlabel(r"Wavenumber $k$")
+plt.ylabel(r"Energy Spectrum $E(k)$")
+plt.legend()
+plt.grid()
+plt.title("2D Energy Spectrum")
+plt.savefig("2D_Energy_Spectrum.png", dpi=300)
+
+# Velocity correlation function
+plt.figure(figsize=(8, 6))
+plt.plot(r_val, R_l, label="Longitudinal correlation")
+plt.plot(r_val, R_t, label="Transverse correlation")
+plt.xlabel("r(in terms of grids)")
+plt.ylabel("Correlation coefficient")
+plt.legend()
+plt.grid()
+plt.title("Velocity correlation function")
+plt.savefig("Velocity_correlation_function.png", dpi=300)
 
 # Plot Structure function S_p vs r
+plt.figure(figsize=(8, 6))
 plt.loglog(r_values, S_1, label="S_1")
-plt.loglog(r_values, S_2, label="S_1")
+plt.loglog(r_values, S_2, label="S_2")
 plt.loglog(r_values, S_3, label="S_3")
 plt.loglog(r_values, S_4, label="S_4")
 plt.loglog(r_values, S_5, label="S_5")
@@ -229,24 +188,10 @@ plt.ylabel("S_p")
 plt.legend()
 plt.title("Structure function S_p vs r")
 plt.grid()
-plt.show()
-
-
-# In[29]:
-
-
-# Kolmogorove's 4/5th law
-S_3_kolmogorov = np.zeros(len(r_length))
-term = 0
-for r in r_length:
-    S_3_kolmogorov[term] = (4 * epsilon * r) / 5
-    term += 1
-
-
-# In[101]:
-
+plt.savefig("Structure_function_S_p_vs_r.png", dpi=300)
 
 # Plot Kolmogorove's 4/5th law
+plt.figure(figsize=(8, 6))
 plt.loglog(r_length, S_3, label="S_3")
 plt.loglog(r_length, S_3_kolmogorov, label="S_3_kolmogorov")
 plt.xlabel("r(in terms of grid)")
@@ -254,15 +199,12 @@ plt.ylabel("S_3")
 plt.legend()
 plt.title("Kolmogorove's 4/5th law")
 plt.grid()
-plt.show()
-
-
-# In[103]:
-
+plt.savefig("Kolmogorov_4_5th_law.png", dpi=300)
 
 # Plot Extended Self-Similarity (ESS)
+plt.figure(figsize=(8, 6))
 plt.loglog(S_3, S_1, label="S_1")
-plt.loglog(S_3, S_2, label="S_1")
+plt.loglog(S_3, S_2, label="S_2")
 plt.loglog(S_3, S_3, label="S_3")
 plt.loglog(S_3, S_4, label="S_4")
 plt.loglog(S_3, S_5, label="S_5")
@@ -273,39 +215,10 @@ plt.ylabel("S_p")
 plt.legend()
 plt.title("Extended Self-Similarity (ESS)")
 plt.grid()
-plt.show()
+plt.savefig("Extended_Self-Similarity.png", dpi=300)
 
-
-# In[130]:
-
-
-p_values = np.arange(1, 8)
-tau = []
-tau_errors = []
-
-def taufit(r_values, S_p, order=None):
-    mask = (S_p > 0) & (np.array(r_values) > 0)
-    valid_points = np.sum(mask)
-    log_S_p = np.log(S_p[mask])
-    log_r_values = np.log(np.array(r_values)[mask])
-    slope, intercept, r_value, p_value, slope_err = stats.linregress(log_r_values, log_S_p)
-    return slope, slope_err
-
-structure_functions = [S_1, S_2, S_3, S_4, S_5, S_6, S_7]
-for i, S_p in enumerate(structure_functions):
-    p = i + 1  # p value is index + 1
-    tau_p, tau_p_err = taufit(r_values, S_p, order=p)
-    tau.append(tau_p)
-    tau_errors.append(tau_p_err)
-
-tau_p_theoretical = [p/3 for p in p_values]
-
-
-# In[132]:
-
-
-# Structure Function Scaling Exponents
-plt.errorbar(valid_p, valid_tau, yerr=valid_errors, fmt='o-', 
+plt.figure(figsize=(10, 6))
+plt.errorbar(p_values, tau, yerr=tau_errors, fmt='o-', 
              capsize=5, elinewidth=1.5, capthick=1.5, 
              label='Measured tau_p', markersize=8)
 
@@ -315,11 +228,4 @@ plt.ylabel('Scaling Exponent (tau_p)')
 plt.title('Structure Function Scaling Exponents')
 plt.grid()
 plt.legend()
-plt.show()
-
-
-# In[ ]:
-
-
-
-
+plt.savefig(f"Structure Function Scaling Exponents.png")
