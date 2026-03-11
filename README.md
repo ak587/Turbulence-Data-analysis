@@ -87,7 +87,3 @@ Results are saved to `Turbulence_results/` and `PIV_results/` directories.
 ✓ **Scientific Rigor**: Proper computation of turbulence metrics following established theory  
 ✓ **Problem-Solving**: Multi-stage analysis pipeline for comprehensive flow characterization  
 ✓ **Python Mastery**: Well-structured code for scientific applications  
-
----
-
-**Contact**: [Your Name] | [Your Email] | [LinkedIn Profile]
