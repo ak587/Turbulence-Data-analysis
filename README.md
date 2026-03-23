@@ -38,19 +38,19 @@ A custom-built, headless particle tracking algorithm to study chaotic dispersion
 
 ## Extracted Physics & Visualizations
 
-[Results](Results)
+> [Results](Results)
 
 ### 1. Flow Topology (Q-R Discriminant Plane)
 Visualizes the invariant map of the velocity gradient tensor. The "teardrop" shape strictly aligns with theoretical turbulence topology, separating focal regions from saddle/strain zones.
-> ![Q_R_scatter.png](Results/Q_R_scatter.png)
+> ![Q_R_scatter.png](Results/Turbulence_data_analysis-3/Q_R_scatter.png)
 
 ### 2. The Energy Cascade (Spectral Density)
 Automated FFT mapping of the kinetic energy spectrum, clearly identifying the integral scale, the $-5/3$ inertial sub-range, and the dissipation scales.
-> ![1D_Energy_Spectrum](Results/1D_Energy_Spectrum.png)
+> ![1D_Energy_Spectrum](Results/Turbulence_data_analysis-2/1D_Energy_Spectrum.png)
 
 ### 3. Chaotic Dispersion (Richardson Pair Separation)
 Log-log and semi-log scaling of particle pair separation over time, mathematically proving the exponential divergence (Lyapunov) of neighboring particles in a turbulent field.
-> ![pair_separation_trajectories](Results/pair_separation_trajectories_Log-Log Scale.png)
+> ![pair_separation_trajectories](Results/Turbulence_data_analysis-3/pair_separation_trajectories_Log-Log Scale.png)
 
 ---
 
