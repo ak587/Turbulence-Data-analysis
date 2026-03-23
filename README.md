@@ -1,80 +1,61 @@
-# Statistical and Dynamical Analysis of Homogeneous Isotropic Turbulence
+# High-Resolution Turbulence Data Engine & Lagrangian Tracking
 
-This repository contains a robust suite of tools for analysing **Homogeneous Isotropic Turbulence (HIT)** data. Using high-resolution simulation slices (1024³), the project explores the multi-scale nature of turbulence through Eulerian statistics, spectral analysis, and Lagrangian particle dynamics.
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![NumPy](https://img.shields.io/badge/Matrix%20Computing-NumPy-orange.svg)](https://numpy.org/)
+[![SciPy](https://img.shields.io/badge/Interpolation-SciPy-lightblue.svg)](https://scipy.org/)
+[![FFT](https://img.shields.io/badge/Math-Fast%20Fourier%20Transforms-yellow.svg)]()
 
-## Project Highlights
-*   **Physics-Driven Insights:** Validated Kolmogorov’s $-5/3$ energy spectrum and structure function scaling laws.
-*   **Computational Efficiency:** Vectorized NumPy operations and optimized spline interpolations for tracking $10^4$ particles.
-*   **Advanced Visualisation:** High-fidelity contour plots, spectral energy density maps, and flow topology (Q-R) diagrams.
-*   **Statistical Depth:** Characterised intermittency through high-order moments (Skewness/Kurtosis) and Probability Density Functions (PDFs).
+## The Computational Challenge
+Analyzing Direct Numerical Simulation (DNS) data of Homogeneous Isotropic Turbulence (HIT) presents a massive "Big Data" challenge in mechanical engineering. 
 
----
-
-## Technical Skill Set
-*   **Languages:** Python
-*   **Libraries:** NumPy, SciPy (Interpolation & Stats), Matplotlib, FFT (Fast Fourier Transforms)
-*   **Mathematical Methods:** Spectral Analysis, Lagrangian Tracking, Tensor Calculus (Velocity Gradient Tensor), Numerical Differentiation.
+Processing a **$1024^3$ grid (over 1 Billion volumetric cells)** using standard nested `for` loops in Python will cause memory overloads and take days to execute. This repository houses a **highly-optimized, fully vectorized Python analytics engine** designed to ingest massive DNS arrays, compute complex tensor mathematics, and execute Lagrangian particle tracking in minutes.
 
 ---
 
-## Phase 1: Eulerian Statistics & Field Characterisation
-In this phase, the focus was on characterising the flow's "snapshot" properties. By calculating the velocity gradient tensor and enstrophy, I identified regions of high-intense rotation and dissipation.
+## Core Analytics Modules
 
-### Key Results:
-*   **Reynolds Number ($Re_\lambda$):** $\approx 7376$
-*   **Intermittency:** Computed enstrophy kurtosis ($\approx 4385$), indicating the presence of extreme, localised events far from a normal distribution.
-*   **Flow Visualisation:**
-<table>
-  <tr>
-    <td><img src="Results/Turbulence_data_analysis-1/Normalized_Vorticity.png" width="400" alt="Vorticity Field"/><br/><b>Normalized Vorticity Field</b></td>
-    <td><img src="Results/Turbulence_data_analysis-1/PDF_CDF_du_dx.png" width="400" alt="PDF du/dx"/><br/><b>Non-Gaussian Tails in Velocity Gradients</b></td>
-  </tr>
-</table>
+The engine is modularized into three distinct physics-data pipelines:
 
----
+### 1. Eulerian Field Processing & Tensor Calculus (`Turbulence_data_analysis-1.py`)
+Extracts fundamental flow topology from raw velocity fields without relying on commercial software.
+* **Velocity Gradient Tensor:** Computes spatial derivatives ($\partial u_i / \partial x_j$) across the $1024^3$ domain using vectorized finite differencing.
+* **Flow Topology:** Calculates the invariant $P, Q, R$ matrices to classify flow regions (e.g., strain-dominated vs. rotation-dominated) via **Q-R scatter diagrams**.
+* **Statistical Intermittency:** Evaluates non-Gaussian behavior in turbulence via high-order moments (Skewness/Kurtosis) of enstrophy and velocity gradients.
 
-## Phase 2: Spectral Analysis & Scaling Laws
-Turbulence is defined by the transfer of energy across scales. This phase validates the **Kolmogorov-K41 theory**.
+### 2. Spectral Dynamics & Energy Cascades (`Turbulence_data_analysis-2.py`)
+Validates the energy transfer mechanisms across multiple scales using Frequency Domain analysis.
+* **Fast Fourier Transforms (FFT):** Converts spatial velocity fields into 1D and 2D energy spectra ($E(k)$).
+* **Kolmogorov Validation:** Algorithmically fits theoretical $-5/3$ power laws to the inertial sub-range to verify energy cascade physics.
+* **Anomalous Scaling:** Computes structure functions up to the 7th order to quantify internal intermittency and deviations from classical K41 theory.
 
-### Impactful Results:
-*   **Energy Cascade:** Validated the $-5/3$ power law in both 1D and 2D spectra, identifying the inertial sub-range.
-*   **Anomalous Scaling:** Measured the scaling exponents ($\tau_p$) for structure functions up to the 7th order. The deviation from the linear $p/3$ theory clearly demonstrates **internal intermittency**.
-
-<p align="center">
-  <img src="Results/Turbulence_data_analysis-2/Structure Function Scaling Exponents.png" width="600" />
-  <br/><i>Figure: Measured vs. Theoretical Scaling Exponents (highlighting intermittency effects).</i>
-</p>
+### 3. Vectorized Lagrangian Particle Tracking (`Turbulence_data_analysis-3.py`)
+A custom-built, headless particle tracking algorithm to study chaotic dispersion.
+* **Massive Scale Tracking:** Simulates the trajectory of **$10^4$ individual fluid particles** simultaneously.
+* **Sub-Grid Interpolation:** Utilizes SciPy's `RectBivariateSpline` for continuous velocity field interpolation, allowing particles to move seamlessly off-grid.
+* **Lyapunov Exponents & Richardson's Law:** Measures the exponential separation of particle pairs to quantify the chaotic nature (predictability horizon) of the flow.
 
 ---
 
-## Phase 3: Lagrangian Dynamics & Flow Topology
-Using a custom-built particle tracker, I analysed how particles disperse in a chaotic flow field and characterised the local flow geometry.
+## Extracted Physics & Visualizations
 
-### Key Results:
-*   **Flow Topology (Q-R Plane):** Characterised the flow into "teardrop" shapes in the Q-R scatter plot, distinguishing between stable/unstable focal regions and strain-dominated zones.
-*   **Richardson Pair Dispersion:** Analyzed particle separation. The growth rate $m \approx 3-4$ (Richardson's law) and positive **Lyapunov Exponents** ($\Lambda \approx 0.025$) provide a quantitative measure of the flow's chaotic sensitivity.
+[Results](Results)
 
-<table>
-  <tr>
-    <td><img src="Results/Turbulence_data_analysis-3/Q_R_scatter.png" width="400" alt="QR Scatter"/><br/><b>Flow Topology (Q-R Scatter)</b></td>
-    <td><img src="Results/Turbulence_data_analysis-3/pair separation trajectories (Log-Log Scale).png" width="400" alt="Pair Separation"/><br/><b>Richardson Pair Dispersion Scaling</b></td>
-  </tr>
-</table>
+### 1. Flow Topology (Q-R Discriminant Plane)
+Visualizes the invariant map of the velocity gradient tensor. The "teardrop" shape strictly aligns with theoretical turbulence topology, separating focal regions from saddle/strain zones.
+> ![Q_R_scatter.png](Results/Q_R_scatter.png)
 
----
+### 2. The Energy Cascade (Spectral Density)
+Automated FFT mapping of the kinetic energy spectrum, clearly identifying the integral scale, the $-5/3$ inertial sub-range, and the dissipation scales.
+> ![1D_Energy_Spectrum](Results/1D_Energy_Spectrum.png)
 
-## Numerical Summary
-| Parameter | Value |
-| :--- | :--- |
-| **Reynolds Number (Re)** | 7376.65 |
-| **Turbulent Diffusivity** | 1.172 |
-| **Enstrophy Kurtosis** | 4385.6 |
-| **Lyapunov Exponent ($\Lambda$)** | ~0.026 |
-| **Grid resolution** | $1024^2$ slice |
+### 3. Chaotic Dispersion (Richardson Pair Separation)
+Log-log and semi-log scaling of particle pair separation over time, mathematically proving the exponential divergence (Lyapunov) of neighboring particles in a turbulent field.
+> ![pair_separation_trajectories](Results/pair_separation_trajectories_Log-Log Scale.png)
 
 ---
 
-## Repository Structure
-*   `Turbulence_data_analysis-1.py`: Eulerian field analysis and basic statistics.
-*   `Turbulence_data_analysis-2.py`: Spectral energy, correlations, and structure functions.
-*   `Turbulence_data_analysis-3.py`: Particle tracking, pair dispersion, and Q-R topology.
+## ⚙️ Computational Performance & Tech Stack
+
+* **Memory Management:** Utilized NumPy broadcasting and array slicing to eliminate `for` loops during multi-million point calculations.
+* **Mathematical Operations:** `np.fft.fftn` for spectral transformations, `np.roots` for localized eigenvalue extraction of the gradient tensor.
+* **Execution:** Designed as lightweight scripts (`.py`) for direct deployment on Linux compute nodes/clusters.
